@@ -134,13 +134,48 @@ def download_video(
 
     pasta_destino.mkdir(parents=True, exist_ok=True)
 
-    formatos = {
-        "melhor": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-        "720p":   "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]",
-        "480p":   "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]",
-        "360p":   "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]",
-        "audio":  "bestaudio[ext=m4a]/bestaudio",
-    }
+    tem_ffmpeg = bool(shutil.which("ffmpeg"))
+
+    # Formatos com fallbacks progressivos: tenta mp4/m4a primeiro,
+    # depois aceita qualquer codec, por fim aceita qualquer formato único.
+    # Sem FFmpeg não é possível fazer merge de streams separados,
+    # por isso o último fallback é sempre um formato já combinado ("best").
+    if tem_ffmpeg:
+        formatos = {
+            "melhor": (
+                "bestvideo[ext=mp4]+bestaudio[ext=m4a]"
+                "/bestvideo+bestaudio"
+                "/best"
+            ),
+            "720p": (
+                "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]"
+                "/bestvideo[height<=720]+bestaudio"
+                "/best[height<=720]"
+                "/best"
+            ),
+            "480p": (
+                "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]"
+                "/bestvideo[height<=480]+bestaudio"
+                "/best[height<=480]"
+                "/best"
+            ),
+            "360p": (
+                "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]"
+                "/bestvideo[height<=360]+bestaudio"
+                "/best[height<=360]"
+                "/best"
+            ),
+            "audio": "bestaudio[ext=m4a]/bestaudio/best",
+        }
+    else:
+        # Sem FFmpeg: usar apenas formatos já combinados (sem merge)
+        formatos = {
+            "melhor": "best[ext=mp4]/best",
+            "720p":   "best[height<=720][ext=mp4]/best[height<=720]/best",
+            "480p":   "best[height<=480][ext=mp4]/best[height<=480]/best",
+            "360p":   "best[height<=360][ext=mp4]/best[height<=360]/best",
+            "audio":  "bestaudio[ext=m4a]/bestaudio/best",
+        }
 
     formato = formatos.get(qualidade, formatos["melhor"])
 
@@ -148,7 +183,7 @@ def download_video(
         "format": formato,
         "restrictfilenames": True,
         "outtmpl": str(pasta_destino / "%(title)s.%(ext)s"),
-        "merge_output_format": "mp4" if qualidade != "audio" else None,
+        "merge_output_format": "mp4" if (qualidade != "audio" and tem_ffmpeg) else None,
         "progress_hooks": [progresso_hook],
         "postprocessors": [],
         "noplaylist": True,
