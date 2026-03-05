@@ -34,6 +34,7 @@ YOUTUBE_URL_REGEX = re.compile(
 )
 
 PASTA_DOWNLOADS = Path(__file__).resolve().parent / "downloads"
+MSG_URL_INVALIDA = "❌ URL inválida. Forneça um link válido do YouTube."
 
 
 # --- Gestão automática de dependências ---
@@ -114,7 +115,7 @@ def validar_url_youtube(url: str) -> bool:
 def listar_formatos(url: str) -> None:
     """Lista os formatos de download disponíveis para o vídeo."""
     if not validar_url_youtube(url):
-        print("❌ URL inválida. Forneça um link válido do YouTube.")
+        print(MSG_URL_INVALIDA)
         return
 
     with yt_dlp.YoutubeDL({"listformats": True, "quiet": True}) as ydl:
@@ -135,7 +136,7 @@ def download_video(
         pasta_destino:  Pasta onde o vídeo será guardado.
     """
     if not validar_url_youtube(url):
-        print("❌ URL inválida. Forneça um link válido do YouTube.")
+        print(MSG_URL_INVALIDA)
         return
 
     if pasta_destino is None:
@@ -270,7 +271,7 @@ def menu() -> None:
         return
 
     if not validar_url_youtube(url):
-        print("❌ URL inválida. Forneça um link válido do YouTube.")
+        print(MSG_URL_INVALIDA)
         return
 
     print("\n📊 Escolha a qualidade:")
