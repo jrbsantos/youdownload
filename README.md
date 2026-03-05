@@ -61,7 +61,7 @@ O `yt-dlp` é instalado automaticamente na primeira vez que o script é executad
 
 ## 📖 Utilização
 
-### Modo linha de comandos
+### Modo linha de comando
 
 ```bash
 python3 youdownload.py <URL> [qualidade]
