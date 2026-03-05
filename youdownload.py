@@ -301,10 +301,18 @@ def menu() -> None:
         print("\n\n⚠️  Download cancelado pelo utilizador.")
 
 
+QUALIDADES_VALIDAS = {"melhor", "720p", "480p", "360p", "audio"}
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         link = sys.argv[1]
         qualidade = sys.argv[2] if len(sys.argv) > 2 else "melhor"
+        if qualidade not in QUALIDADES_VALIDAS:
+            print(
+                f"❌ Qualidade '{qualidade}' inválida.\n"
+                f"   Opções válidas: {', '.join(sorted(QUALIDADES_VALIDAS))}"
+            )
+            sys.exit(1)
         try:
             download_video(link, qualidade)
         except yt_dlp.utils.DownloadError as erro:
