@@ -1,6 +1,6 @@
 # 🎬 YouDownload
 
-Um script Python simples e poderoso para fazer download de vídeos e áudio do YouTube diretamente pela linha de comandos. Suporta vídeos normais, Shorts e links `youtu.be`. Instala as dependências automaticamente na primeira execução.
+Um script Python simples e poderoso para fazer download de vídeos e áudio do YouTube diretamente pela linha de comando. Suporta vídeos normais, Shorts e links `youtu.be`. Instala as dependências automaticamente na primeira execução.
 
 ---
 
