@@ -22,46 +22,138 @@ YOUTUBE_URL_REGEX = re.compile(
     r"^https?://(www\.)?"
     r"(youtube\.com/(watch\?.*v=|shorts/|embed/)|youtu\.be/)"
     r"[a-zA-Z0-9_-]{11}"
+    r"([?&].*)?$"
 )
 
-PASTA_DOWNLOADS = Path(__file__).resolve().parent / "downloads"
+PASTA_SCRIPT = Path(__file__).resolve().parent
+PASTA_DOWNLOADS = PASTA_SCRIPT / "downloads"
+PASTA_VENV = PASTA_SCRIPT / ".venv"
 
 
-# --- Gestão automática de dependências ---
-def _instalar_pacote(pacote: str) -> None:
-    """Instala um pacote Python usando o pip do interpretador atual."""
-    print(f"📦 A instalar '{pacote}'...")
+# --- Gestão automática de dependências (Windows / macOS / Linux) ---
+def _python_do_venv() -> Path:
+    """Retorna o caminho do executável Python dentro do venv (cross-platform)."""
+    if sys.platform == "win32":
+        return PASTA_VENV / "Scripts" / "python.exe"
+    return PASTA_VENV / "bin" / "python3"
+
+
+def _estamos_no_venv() -> bool:
+    """Verifica se o interpretador atual já é o do venv do projeto."""
+    venv_python = _python_do_venv()
+    try:
+        return venv_python.resolve() == Path(sys.executable).resolve()
+    except OSError:
+        return False
+
+
+def _criar_venv() -> None:
+    """Cria um ambiente virtual na pasta do script."""
+    import venv
+
+    print("📁 A criar ambiente virtual (.venv)...")
+    venv.create(str(PASTA_VENV), with_pip=True)
+    print("✅ Ambiente virtual criado.")
+
+
+def _instalar_no_venv(pacote: str) -> None:
+    """Instala um pacote dentro do venv do projeto."""
+    venv_python = _python_do_venv()
+    print(f"📦 A instalar '{pacote}' no ambiente virtual...")
     subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "--quiet", pacote],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        [str(venv_python), "-m", "pip", "install", "--quiet", pacote],
     )
+
+
+def _reexecutar_no_venv() -> None:
+    """Re-executa o script usando o Python do venv (cross-platform)."""
+    venv_python = str(_python_do_venv())
+    print("🔄 A reexecutar com o ambiente virtual...\n")
+    if sys.platform == "win32":
+        # No Windows, os.execv não funciona bem — usamos subprocess
+        resultado = subprocess.run([venv_python] + sys.argv)
+        sys.exit(resultado.returncode)
+    else:
+        import os
+        os.execv(venv_python, [venv_python] + sys.argv)
+
+
+def _instalar_pip_direto(pacote: str) -> bool:
+    """Tenta instalar diretamente com pip (funciona se não houver PEP 668)."""
+    try:
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "--quiet", pacote],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return True
+    except (subprocess.CalledProcessError, OSError):
+        return False
 
 
 def garantir_dependencias() -> None:
     """Verifica e instala automaticamente as dependências Python necessárias."""
     try:
         import yt_dlp  # noqa: F401
+        _verificar_ffmpeg()
+        return
     except ImportError:
-        print("⚠️  O módulo 'yt-dlp' não foi encontrado.")
+        pass
+
+    print("⚠️  O módulo 'yt-dlp' não foi encontrado.\n")
+
+    # Estratégia 1: Se já estamos no venv, instalar diretamente
+    if _estamos_no_venv():
         try:
-            _instalar_pacote("yt-dlp")
+            _instalar_no_venv("yt-dlp")
             print("✅ 'yt-dlp' instalado com sucesso!\n")
+            _verificar_ffmpeg()
+            return
         except (subprocess.CalledProcessError, OSError) as erro:
-            print(f"❌ Falha ao instalar 'yt-dlp': {erro}")
-            print("   Instale manualmente: pip install yt-dlp")
+            print(f"❌ Falha ao instalar no venv: {erro}")
             sys.exit(1)
 
-    if not shutil.which("ffmpeg"):
-        print("⚠️  FFmpeg não encontrado no sistema.")
-        print("   Sem FFmpeg, merge de áudio+vídeo ou conversão MP3 podem falhar.")
-        if sys.platform == "darwin":
-            print("   → Instale com: brew install ffmpeg")
-        elif sys.platform.startswith("linux"):
-            print("   → Instale com: sudo apt install ffmpeg")
-        elif sys.platform == "win32":
-            print("   → Baixe em: https://ffmpeg.org/download.html")
-        print()
+    # Estratégia 2: Tentar pip install direto (funciona no Windows e alguns Linux)
+    if _instalar_pip_direto("yt-dlp"):
+        print("✅ 'yt-dlp' instalado com sucesso!\n")
+        _verificar_ffmpeg()
+        return
+
+    # Estratégia 3: Criar venv, instalar lá, e reexecutar o script
+    print("ℹ️  Instalação direta bloqueada pelo sistema (PEP 668).")
+    print("   A configurar um ambiente virtual automático...\n")
+    try:
+        if not PASTA_VENV.exists():
+            _criar_venv()
+        _instalar_no_venv("yt-dlp")
+        print("✅ 'yt-dlp' instalado com sucesso!\n")
+        _reexecutar_no_venv()
+    except (subprocess.CalledProcessError, OSError) as erro:
+        print(f"\n❌ Falha ao configurar o ambiente: {erro}")
+        print("   Instale manualmente:")
+        print("     python3 -m venv .venv")
+        if sys.platform == "win32":
+            print("     .venv\\Scripts\\activate")
+        else:
+            print("     source .venv/bin/activate")
+        print("     pip install yt-dlp")
+        sys.exit(1)
+
+
+def _verificar_ffmpeg() -> None:
+    """Avisa o utilizador se o FFmpeg não estiver instalado."""
+    if shutil.which("ffmpeg"):
+        return
+    print("⚠️  FFmpeg não encontrado no sistema.")
+    print("   Sem FFmpeg, merge de áudio+vídeo ou conversão MP3 podem falhar.")
+    if sys.platform == "darwin":
+        print("   → Instale com: brew install ffmpeg")
+    elif sys.platform.startswith("linux"):
+        print("   → Instale com: sudo apt install ffmpeg")
+    elif sys.platform == "win32":
+        print("   → Instale com: winget install ffmpeg")
+        print("     Ou baixe em: https://ffmpeg.org/download.html")
+    print()
 
 
 garantir_dependencias()
@@ -230,12 +322,14 @@ def menu() -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        link = sys.argv[1]
-        qualidade = sys.argv[2] if len(sys.argv) > 2 else "melhor"
-        try:
+    try:
+        if len(sys.argv) > 1:
+            link = sys.argv[1]
+            qualidade = sys.argv[2] if len(sys.argv) > 2 else "melhor"
             download_video(link, qualidade)
-        except yt_dlp.utils.DownloadError as erro:
-            print(f"\n❌ Erro no download: {erro}")
-    else:
-        menu()
+        else:
+            menu()
+    except yt_dlp.utils.DownloadError as erro:
+        print(f"\n❌ Erro no download: {erro}")
+    except KeyboardInterrupt:
+        print("\n\n⚠️  Download cancelado pelo utilizador.")
