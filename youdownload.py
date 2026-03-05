@@ -47,7 +47,7 @@ def _instalar_pacote(pacote: str) -> None:
       - Linux   : tenta pip normal; se falhar (PEP 668 / apt-managed),
                   repete com --break-system-packages
     """
-    print(f"📦 A instalar '{pacote}'...")
+    print(f"📦 Instalando '{pacote}'...")
     cmd_base = [sys.executable, "-m", "pip", "install", "--quiet", pacote]
 
     if sys.platform == "win32":
