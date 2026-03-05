@@ -16,6 +16,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+# --- Verificação de versão do Python ---
+if sys.version_info < (3, 12):
+    print(
+        f"❌ Python {sys.version_info.major}.{sys.version_info.minor} não é suportado.\n"
+        "   Este script requer Python 3.12 ou superior.\n"
+        "   Atualize o Python e tente novamente."
+    )
+    sys.exit(1)
+
 
 # --- Constantes ---
 YOUTUBE_URL_REGEX = re.compile(
