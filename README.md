@@ -61,7 +61,7 @@ O `yt-dlp` é instalado automaticamente na primeira vez que o script é executad
 
 ## 📖 Utilização
 
-### Modo linha de comando
+### Modo linha de comandos
 
 ```bash
 python3 youdownload.py <URL> [qualidade]
@@ -95,6 +95,8 @@ python3 youdownload.py "https://youtu.be/dQw4w9WgXcQ" 480p
 | `480p` | SD 480p |
 | `360p` | SD 360p |
 | `audio` | Apenas áudio, exportado em MP3 192kbps |
+
+> ❌ Passar um valor de qualidade inválido termina o script imediatamente com uma mensagem de erro indicando as opções válidas.
 
 ### Modo interativo (menu)
 
