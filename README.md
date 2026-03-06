@@ -34,7 +34,7 @@ Um script Python simples e poderoso para fazer download de vídeos e áudio do Y
 ### 1. Clonar o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/youdownload.git
+git clone https://github.com/jrbsantos/youdownload.git
 cd youdownload
 ```
 
