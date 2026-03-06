@@ -1,0 +1,1 @@
+Initial release of YouDownload - A Python application for downloading content. This is the first stable release with the project structure and configuration in place.
