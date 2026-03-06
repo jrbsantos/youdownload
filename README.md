@@ -100,7 +100,7 @@ python3 youdownload.py "https://youtu.be/dQw4w9WgXcQ" 480p
 
 ### Modo interativo (menu)
 
-Execute sem argumentos para aceder ao menu interativo:
+Execute sem argumentos para acessar o menu interativo:
 
 ```bash
 python3 youdownload.py
@@ -138,7 +138,7 @@ youdownload/
 
 ## 🔧 Como funciona
 
-1. **Verificação de Python** — O script verifica se está a correr em Python 3.12+. Caso contrário, exibe uma mensagem clara e termina.
+1. **Verificação de Python** — O script verifica se está executando o Python 3.12+. Caso contrário, exibe uma mensagem clara e termina.
 2. **Gestão de dependências** — Tenta importar `yt-dlp`. Se não estiver instalado, instala automaticamente via `pip`, com suporte a ambientes geridos pelo sistema (Homebrew, apt, etc.).
 3. **Verificação de FFmpeg** — Avisa se o FFmpeg não estiver disponível e ajusta os formatos de download automaticamente.
 4. **Download adaptativo** — Usa uma cadeia de formatos com fallbacks progressivos para garantir que o download funciona independentemente dos formatos disponíveis no vídeo.
@@ -147,7 +147,7 @@ youdownload/
 
 ## 🐛 Problemas conhecidos / FAQ
 
-**O pip falha a instalar o `yt-dlp` no macOS ou Linux?**
+**O pip falha ao instalar o `yt-dlp` no macOS ou Linux?**
 > O script tenta automaticamente com `--break-system-packages` em ambientes Homebrew/apt. Se mesmo assim falhar, use um ambiente virtual:
 > ```bash
 > python3 -m venv venv && source venv/bin/activate
