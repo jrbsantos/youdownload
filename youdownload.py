@@ -35,6 +35,9 @@ YOUTUBE_URL_REGEX = re.compile(
 
 QUALIDADES_VALIDAS = {"melhor", "720p", "480p", "360p", "audio"}
 
+MSG_YTDLP_INSTALADO = "✅ 'yt-dlp' instalado com sucesso!\n"
+MSG_URL_INVALIDA = "❌ URL inválida. Forneça um link válido do YouTube."
+
 PASTA_SCRIPT = Path(__file__).resolve().parent
 PASTA_DOWNLOADS = PASTA_SCRIPT / "downloads"
 PASTA_VENV = PASTA_SCRIPT / ".venv"
@@ -72,6 +75,7 @@ def _instalar_no_venv(pacote: str) -> None:
     print(f"📦 Instalando '{pacote}' no ambiente virtual...")
     subprocess.check_call(
         [str(venv_python), "-m", "pip", "install", "--quiet", pacote],
+        timeout=120,  # Evita bloqueio indefinido em caso de rede instável
     )
 
 
@@ -81,11 +85,13 @@ def _reexecutar_no_venv() -> None:
     print("🔄 Reexecutando com o ambiente virtual...\n")
     if sys.platform == "win32":
         # No Windows, os.execv não funciona bem — usa-se subprocess
-        resultado = subprocess.run([venv_python] + sys.argv)
+        # sys.argv é controlado internamente (re-execução do próprio script)
+        resultado = subprocess.run([venv_python] + sys.argv)  # noqa: S603
         sys.exit(resultado.returncode)
     else:
         import os
-        os.execv(venv_python, [venv_python] + sys.argv)
+        # sys.argv é controlado internamente (re-execução do próprio script)
+        os.execv(venv_python, [venv_python] + sys.argv)  # noqa: S606
 
 
 def _instalar_pip_direto(pacote: str) -> bool:
@@ -95,6 +101,7 @@ def _instalar_pip_direto(pacote: str) -> bool:
             [sys.executable, "-m", "pip", "install", "--quiet", pacote],
             stdout=subprocess.DEVNULL,
             # Mantém o stderr visível para diagnóstico, suprimindo apenas o stdout
+            timeout=120,  # Evita bloqueio indefinido em caso de rede instável
         )
         return True
     except (subprocess.CalledProcessError, OSError):
@@ -116,7 +123,7 @@ def garantir_dependencias() -> None:
     if _estamos_no_venv():
         try:
             _instalar_no_venv("yt-dlp")
-            print("✅ 'yt-dlp' instalado com sucesso!\n")
+            print(MSG_YTDLP_INSTALADO)
             _verificar_ffmpeg()
             return
         except (subprocess.CalledProcessError, OSError) as erro:
@@ -125,7 +132,7 @@ def garantir_dependencias() -> None:
 
     # Estratégia 2: Tentar pip install direto (funciona no Windows e alguns Linux)
     if _instalar_pip_direto("yt-dlp"):
-        print("✅ 'yt-dlp' instalado com sucesso!\n")
+        print(MSG_YTDLP_INSTALADO)
         _verificar_ffmpeg()
         return
 
@@ -136,7 +143,7 @@ def garantir_dependencias() -> None:
         if not PASTA_VENV.exists():
             _criar_venv()
         _instalar_no_venv("yt-dlp")
-        print("✅ 'yt-dlp' instalado com sucesso!\n")
+        print(MSG_YTDLP_INSTALADO)
         _reexecutar_no_venv()
     except (subprocess.CalledProcessError, OSError) as erro:
         print(f"\n❌ Falha ao configurar o ambiente: {erro}")
@@ -180,7 +187,7 @@ def validar_url_youtube(url: str) -> bool:
 def listar_formatos(url: str) -> None:
     """Lista os formatos de download disponíveis para o vídeo."""
     if not validar_url_youtube(url):
-        print("❌ URL inválida. Forneça um link válido do YouTube.")
+        print(MSG_URL_INVALIDA)
         return
 
     with yt_dlp.YoutubeDL({"listformats": True, "quiet": True}) as ydl:
@@ -205,7 +212,7 @@ def download_video(
         yt_dlp.utils.DownloadError: Se ocorrer um erro durante o download.
     """
     if not validar_url_youtube(url):
-        raise ValueError("URL inválida. Forneça um link válido do YouTube.")
+        raise ValueError(MSG_URL_INVALIDA)
 
     # Normaliza a qualidade e valida contra o conjunto permitido
     qualidade = qualidade.lower().strip()
@@ -324,7 +331,7 @@ def menu() -> None:
         return
 
     if not validar_url_youtube(url):
-        print("❌ URL inválida. Forneça um link válido do YouTube.")
+        print(MSG_URL_INVALIDA)
         return
 
     print("\n📊 Escolha a qualidade:")
@@ -361,7 +368,7 @@ def _usar_modo_cli(args: list[str]) -> None:
     url = args[0]
 
     if not validar_url_youtube(url):
-        print("❌ URL inválida. Forneça um link válido do YouTube.")
+        print(MSG_URL_INVALIDA)
         sys.exit(1)
 
     # Suporte ao flag --list-formats
