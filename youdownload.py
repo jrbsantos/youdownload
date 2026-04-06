@@ -35,6 +35,14 @@ YOUTUBE_URL_REGEX = re.compile(
 
 QUALIDADES_VALIDAS = {"melhor", "720p", "480p", "360p", "audio"}
 
+FORMATOS_YTDLP: dict[str, str] = {
+    "melhor": "bestvideo[vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[vcodec^=avc1]+bestaudio/bestvideo+bestaudio/best",
+    "720p":   "bestvideo[height<=720][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<=720][vcodec^=avc1]+bestaudio/bestvideo[height<=720]+bestaudio/best[height<=720]",
+    "480p":   "bestvideo[height<=480][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<=480][vcodec^=avc1]+bestaudio/bestvideo[height<=480]+bestaudio/best[height<=480]",
+    "360p":   "bestvideo[height<=360][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<=360][vcodec^=avc1]+bestaudio/bestvideo[height<=360]+bestaudio/best[height<=360]",
+    "audio":  "bestaudio[acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio",
+}
+
 MSG_YTDLP_INSTALADO = "✅ 'yt-dlp' instalado com sucesso!\n"
 MSG_URL_INVALIDA = "❌ URL inválida. Forneça um link válido do YouTube."
 
@@ -173,11 +181,6 @@ def _verificar_ffmpeg() -> None:
     print()
 
 
-garantir_dependencias()
-
-import yt_dlp  # noqa: E402
-
-
 # --- Validação ---
 def validar_url_youtube(url: str) -> bool:
     """Verifica se a URL é um link válido do YouTube."""
@@ -186,6 +189,8 @@ def validar_url_youtube(url: str) -> bool:
 
 def listar_formatos(url: str) -> None:
     """Lista os formatos de download disponíveis para o vídeo."""
+    import yt_dlp
+
     if not validar_url_youtube(url):
         print(MSG_URL_INVALIDA)
         return
@@ -211,6 +216,8 @@ def download_video(
         ValueError: Se a URL ou qualidade fornecidas forem inválidas.
         yt_dlp.utils.DownloadError: Se ocorrer um erro durante o download.
     """
+    import yt_dlp
+
     if not validar_url_youtube(url):
         raise ValueError(MSG_URL_INVALIDA)
 
@@ -229,15 +236,7 @@ def download_video(
 
     pasta_destino.mkdir(parents=True, exist_ok=True)
 
-    formatos: dict[str, str] = {
-        "melhor": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-        "720p":   "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]",
-        "480p":   "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]",
-        "360p":   "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]",
-        "audio":  "bestaudio[ext=m4a]/bestaudio",
-    }
-
-    formato = formatos[qualidade]  # Acesso direto — qualidade já validada acima
+    formato = FORMATOS_YTDLP[qualidade]  # Acesso direto — qualidade já validada acima
 
     opcoes: dict[str, Any] = {
         "format": formato,
@@ -253,6 +252,10 @@ def download_video(
     # merge_output_format só faz sentido para vídeo; omitir no áudio evita warnings
     if qualidade != "audio":
         opcoes["merge_output_format"] = "mp4"
+        opcoes["postprocessors"].append({
+            "key": "FFmpegVideoConvertor",
+            "preferedformat": "mp4",
+        })
 
     if qualidade == "audio":
         if not shutil.which("ffmpeg"):
@@ -308,7 +311,7 @@ def formatar_duracao(segundos: int | float | None) -> str:
 
     Aceita int ou float (a API do yt-dlp pode retornar float).
     """
-    if not segundos:  # Cobre None e 0
+    if segundos is None:
         return "Desconhecida"
     total_segs = int(segundos)  # Garante que é inteiro antes de divmod
     horas, resto = divmod(total_segs, 3600)
@@ -353,28 +356,34 @@ def menu() -> None:
 
     qualidade = opcoes_qualidade.get(escolha, "melhor")
 
+    import yt_dlp
+
     try:
         download_video(url, qualidade)
     except ValueError as erro:
         print(f"\n❌ Erro de validação: {erro}")
     except yt_dlp.utils.DownloadError as erro:
         print(f"\n❌ Erro no download: {erro}")
-    except KeyboardInterrupt:
-        print("\n\n⚠️  Download cancelado pelo usuário.")
 
 
 def _usar_modo_cli(args: list[str]) -> None:
     """Processa os argumentos da linha de comando e inicia a ação correspondente."""
+    import yt_dlp
+
+    # Separa flags de argumentos posicionais
+    if "--list-formats" in args:
+        args_sem_flag = [a for a in args if a != "--list-formats"]
+        if not args_sem_flag or not validar_url_youtube(args_sem_flag[0]):
+            print(MSG_URL_INVALIDA)
+            sys.exit(1)
+        listar_formatos(args_sem_flag[0])
+        return
+
     url = args[0]
 
     if not validar_url_youtube(url):
         print(MSG_URL_INVALIDA)
         sys.exit(1)
-
-    # Suporte ao flag --list-formats
-    if len(args) > 1 and args[1] == "--list-formats":
-        listar_formatos(url)
-        return
 
     qualidade = args[1] if len(args) > 1 else "melhor"
 
@@ -389,6 +398,7 @@ def _usar_modo_cli(args: list[str]) -> None:
 
 
 if __name__ == "__main__":
+    garantir_dependencias()
     try:
         if len(sys.argv) > 1:
             _usar_modo_cli(sys.argv[1:])
